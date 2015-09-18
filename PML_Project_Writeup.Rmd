@@ -1,0 +1,134 @@
+---
+title: "PML Project Writeup"
+output:
+  html_document:
+    pandoc_args: [
+      "+RTS", "-K64m",
+      "-RTS"
+    ]
+author: 
+date: "September 18, 2015"
+---
+### Executive Summary 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible 
+to collect a large amount of data about personal activity relatively inexpensively. 
+These type of devices are part of the quantified self movement – a group of enthusiasts 
+who take measurements about themselves regularly to improve their health, to find 
+patterns in their behavior, or because they are tech geeks. One thing that people 
+regularly do is quantify how much of a particular activity they do, but they rarely 
+quantify how well they do it. 
+
+In this project, the goal will be to use data from accelerometers on the belt, forearm, 
+arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly 
+and incorrectly in 5 different ways. More information is available from the website 
+here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting 
+Exercise Dataset).
+
+The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from the paper referenced below and downloaded here: http://groupware.les.inf.puc-rio.br/har . 
+
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable 
+Computing: Accelerometers' Data Classification of Body Postures and Movements. 
+Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in 
+Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. 
+Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. 
+DOI: 10.1007/978-3-642-34459-6_6.  
+
+
+###Data Processing 
+__Load required libraries__
+```{r setup}
+library(caret)
+```   
+The data for the project has been downloaded as csv files from the links refernced in the executive summary.    
+__Load the training data__
+```{r trn_load}
+x <- read.csv("pml-training.csv", na.strings=c("NA", ""))
+dim(x)
+x[1:5,1:5]
+```  
+__Load the test data__
+```{r tst_load}
+y <- read.csv("pml-testing.csv", na.strings=c("NA", ""))
+dim(y)
+y[1:5,1:5]
+```  
+__Cleaning the data__ is next, and first we need to remove all the columns with NA in them because they are summary based.  
+```{r clear_NA}
+x <-x[,colSums(is.na(x))==0]
+y <-y[,colSums(is.na(y))==0]
+```  
+Our next step is to convert to numeric data types and remove columns we know are not features. 
+```{r num_nuke}
+###convert all the features to numerics
+for(i in 8:59){tmp <- typeof(x[,i]); if(tmp == "integer") x[,i]<- as.numeric(x[,i])}
+for(i in 8:59){tmp <- typeof(y[,i]); if(tmp == "integer") y[,i]<- as.numeric(y[,i])}
+#### remove un-needed columns
+x<- x[,c(7:60)]
+y<- y[,c(7:60)]
+dim(x)
+dim(y)
+```
+
+### Exploratory Data Analysis
+```{r expDA}
+dim(x)
+names(x)
+summary(x$classe)
+plot(x$classe, col=rainbow(5), main="x$classe Frequency")
+```
+
+At this point we are ready to split the training set into two so we can have cross validation data later.  
+```{r split}
+### split into training and validation sets 
+inTrain <- createDataPartition(x$classe, p=0.70, list=FALSE)
+trainx<- x[inTrain,]
+validx<-x[-inTrain,]
+dim(trainx)
+dim(validx)
+```
+### Model Fitting 
+We plan to use random forest for the model fit because of it's high level of accuracy. We also with use the cross validation option with 5 folds. 
+```{r fit, cache=TRUE}
+### fit a model using random forest
+fit <- train(classe~.,data=trainx, method="rf", trControl = trainControl(method="cv", number = 5), prox = TRUE)
+fit
+```
+
+### Calculating Accuracy in/out of sample
+
+```{r accuracy_in,cache=TRUE}
+train_ans<-predict(fit,trainx)
+confusionMatrix(train_ans, trainx$classe)
+```
+ The confusionMatrix above shows that our in_sample accuracy is equal to 1 which is 100%. 
+ 
+```{r accuracy_out,cache=TRUE} 
+valid_ans<-predict(fit,validx)
+confusionMatrix(valid_ans, validx$classe)
+``` 
+As we would expect the confusionMatrix above shows our out of sample accuracy is slightly less at .9983 which is 99.83%. 
+
+### Predicting the test dataset 
+As required for the project we now will predict the 20 values of the test case.
+```{r final_ans,cache=TRUE}
+answer <- as.character(predict(fit,newdata=y))
+answer
+```   
+### Write out the assignment files as required. 
+
+```{r write_files,cache=TRUE}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answer)
+
+```
