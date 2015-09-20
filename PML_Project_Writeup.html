@@ -187,6 +187,7 @@ fit &lt;- train(classe~.,data=trainx, method=&quot;rf&quot;, trControl = trainCo
 </div>
 <div id="calculating-accuracy-inout-of-sample" class="section level3">
 <h3>Calculating Accuracy in/out of sample</h3>
+<p>We expect the in sample accuracy to be very high in the range of 100 percent or almost 100 percent. The out of sample accuracy should be slightly less but still very high.</p>
 <pre class="r"><code>train_ans&lt;-predict(fit,trainx)
 confusionMatrix(train_ans, trainx$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
